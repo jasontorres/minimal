@@ -66,9 +66,10 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
   function closeProfileMenu(restoreViews = true) { setProfileMenuOpen(false); if (restoreViews) api.showViews(); }
 
   const activeProfile = profiles.find(p => p.id === activeProfileId);
+  const isMac = api.platform === 'darwin';
 
   return (
-    <div className="title-bar">
+    <div className={`title-bar ${isMac ? 'title-bar-mac' : ''}`}>
       <div className="title-bar-content">Minimal Browser</div>
       <div className="title-bar-controls">
         {/* Profile switcher */}
@@ -129,10 +130,12 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
           </div>
         </div>
 
-        {/* Window controls — Windows 11 style SVGs */}
-        <button className="title-bar-btn" onClick={() => api.minimizeWindow()} title="Minimize"><IconMinimize /></button>
-        <button className="title-bar-btn" onClick={() => api.maximizeWindow()} title="Maximize"><IconMaximize /></button>
-        <button className="title-bar-btn close" onClick={() => api.closeWindow()} title="Close"><IconClose /></button>
+        {/* Window controls — Windows/Linux only (Mac uses native traffic lights) */}
+        {!isMac && <>
+          <button className="title-bar-btn" onClick={() => api.minimizeWindow()} title="Minimize"><IconMinimize /></button>
+          <button className="title-bar-btn" onClick={() => api.maximizeWindow()} title="Maximize"><IconMaximize /></button>
+          <button className="title-bar-btn close" onClick={() => api.closeWindow()} title="Close"><IconClose /></button>
+        </>}
       </div>
     </div>
   );

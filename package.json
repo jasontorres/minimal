@@ -1,31 +1,28 @@
 {
   "name": "minimal-browser",
   "version": "0.1.0",
-  "description": "A minimalist, allow-listed desktop browser",
+  "description": "A minimalist, allow-listed desktop browser with split view and profiles",
   "main": "src/main/index.js",
   "license": "MIT",
   "author": "",
   "scripts": {
-    "dev:vite": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev": "npm run build:renderer && electron .",
     "build:renderer": "vite build",
     "pack": "npm run build:renderer && electron-builder --dir",
     "dist": "npm run build:renderer && electron-builder",
     "dist:win": "npm run build:renderer && electron-builder --win",
     "dist:mac": "npm run build:renderer && electron-builder --mac",
-    "dist:linux": "npm run build:renderer && electron-builder --linux"
+    "dist:linux": "npm run build:renderer && electron-builder --linux",
+    "dist:all": "npm run build:renderer && electron-builder --win --mac --linux"
   },
   "devDependencies": {
     "@types/node": "^22.10.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "concurrently": "^9.1.2",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
     "typescript": "^5.7.3",
-    "vite": "^6.0.11",
-    "wait-on": "^8.0.5"
+    "vite": "^6.0.11"
   },
   "build": {
     "appId": "com.minimalbrowser.app",
@@ -38,26 +35,64 @@
       "src/main/**/*",
       "package.json"
     ],
+    "extraMetadata": {
+      "main": "src/main/index.js"
+    },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.png",
+      "uninstallerIcon": "build/icon.png"
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
       ],
-      "category": "public.app-category.productivity"
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
     },
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "category": "Network"
+      "icon": "build/icons",
+      "category": "Network",
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
     }
   },
   "dependencies": {

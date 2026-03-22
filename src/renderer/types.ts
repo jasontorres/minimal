@@ -33,6 +33,7 @@ export interface TabUpdateData {
 }
 
 export interface ElectronAPI {
+  platform: string;
   minimizeWindow: () => void;
   maximizeWindow: () => void;
   closeWindow: () => void;

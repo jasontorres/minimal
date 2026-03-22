@@ -67,6 +67,9 @@ html, body, #root {
   user-select: none;
 }
 
+/* macOS: leave room for native traffic light buttons */
+.title-bar-mac .title-bar-content { padding-left: 78px; }
+
 .title-bar-controls {
   display: flex;
   height: 100%;

@@ -17,11 +17,12 @@ const { browserManager } = require('./browser-manager');
 let mainWindow = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isMac = process.platform === 'darwin';
 
 function createWindow() {
   const windowState = configStore.getWindowState();
 
-  mainWindow = new BrowserWindow({
+  const windowOpts = {
     x: windowState?.x,
     y: windowState?.y,
     width: windowState?.width || 1200,
@@ -31,8 +32,6 @@ function createWindow() {
     title: 'Minimal Browser',
     show: false,
     backgroundColor: '#ffffff',
-    frame: false,
-    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -41,7 +40,19 @@ function createWindow() {
       webviewTag: false,
       backgroundThrottling: false
     }
-  });
+  };
+
+  if (isMac) {
+    // macOS: keep native traffic lights, hide the rest of the title bar
+    windowOpts.titleBarStyle = 'hiddenInset';
+    windowOpts.trafficLightPosition = { x: 12, y: 10 };
+  } else {
+    // Windows/Linux: fully custom title bar
+    windowOpts.frame = false;
+    windowOpts.titleBarStyle = 'hidden';
+  }
+
+  mainWindow = new BrowserWindow(windowOpts);
 
   if (windowState?.isMaximized) {
     mainWindow.maximize();
