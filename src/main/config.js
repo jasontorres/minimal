@@ -8,8 +8,16 @@ const { app } = require('electron');
 
 class ConfigStore {
   constructor() {
+    this.configPath = null;
+    this.statePath = null;
+    this.windowState = null;
+    this.config = this.createDefaultConfig();
+  }
+
+  init() {
     const userDataPath = app.getPath('userData');
     this.configPath = path.join(userDataPath, 'config.json');
+    this.statePath = path.join(userDataPath, 'window-state.json');
     console.log('Config file location:', this.configPath);
 
     // Ensure config directory exists
@@ -23,7 +31,6 @@ class ConfigStore {
       try {
         const data = fs.readFileSync(this.configPath, 'utf-8');
         console.log('Config file exists, reading...');
-        console.log('Raw config data:', data);
         this.config = JSON.parse(data);
         console.log('Parsed config:', JSON.stringify(this.config, null, 2));
       } catch (e) {
@@ -34,6 +41,15 @@ class ConfigStore {
       console.log('Config file does not exist, creating default');
       this.config = this.createDefaultConfig();
       this.save();
+    }
+
+    // Load window state from separate file
+    if (fs.existsSync(this.statePath)) {
+      try {
+        this.windowState = JSON.parse(fs.readFileSync(this.statePath, 'utf-8'));
+      } catch (e) {
+        this.windowState = null;
+      }
     }
   }
 
@@ -89,8 +105,6 @@ class ConfigStore {
   }
 
   replaceConfig(newConfig) {
-    // Preserve windowState from current config
-    newConfig.windowState = this.config.windowState;
     this.config = newConfig;
     this.save();
   }
@@ -109,12 +123,14 @@ class ConfigStore {
   }
 
   saveWindowState(bounds) {
-    this.config.windowState = bounds;
-    this.save();
+    this.windowState = bounds;
+    if (this.statePath) {
+      fs.writeFileSync(this.statePath, JSON.stringify(bounds, null, 2));
+    }
   }
 
   getWindowState() {
-    return this.config.windowState;
+    return this.windowState;
   }
 }
 

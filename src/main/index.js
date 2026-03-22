@@ -384,6 +384,7 @@ function setupIpc() {
 }
 
 app.whenReady().then(() => {
+  configStore.init();
   createWindow();
   setupIpc();
   registerShortcuts();
