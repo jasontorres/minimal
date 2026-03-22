@@ -208,6 +208,7 @@ class BrowserManager {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        backgroundThrottling: false,
         // Use persistent session for cookies/auth
         session: this.getSession()
       }

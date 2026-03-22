@@ -70,7 +70,7 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
 
   return (
     <div className={`title-bar ${isMac ? 'title-bar-mac' : ''}`}>
-      <div className="title-bar-content">Minimal Browser</div>
+      <div className="title-bar-content"></div>
       <div className="title-bar-controls">
         {/* Profile switcher */}
         {profiles.length > 1 && (

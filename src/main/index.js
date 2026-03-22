@@ -29,7 +29,7 @@ function createWindow() {
     height: windowState?.height || 800,
     minWidth: 600,
     minHeight: 400,
-    title: 'Minimal Browser',
+    title: 'Minimal',
     show: false,
     backgroundColor: '#ffffff',
     webPreferences: {
