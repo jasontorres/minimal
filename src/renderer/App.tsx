@@ -12,6 +12,7 @@ export default function App() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'appearance' | 'tabs' | 'advanced' | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
   const [tabStates, setTabStates] = useState<Map<string, { isLoading?: boolean; title?: string; favicon?: string }>>(new Map());
 
@@ -89,19 +90,20 @@ export default function App() {
     setIsDark(dark);
   }
 
-  function openSettings() {
+  function openSettings(tab?: 'appearance' | 'tabs' | 'advanced') {
+    setSettingsInitialTab(tab);
     setSettingsOpen(true);
     api.hideViews();
   }
 
   function closeSettings() {
     setSettingsOpen(false);
+    setSettingsInitialTab(undefined);
     api.showViews();
   }
 
   function handleAddTab() {
-    // Open settings on the tabs section
-    openSettings();
+    openSettings('tabs');
   }
 
   const position = profile?.tabBarPosition || 'top';
@@ -134,7 +136,7 @@ export default function App() {
             <div className="placeholder">No tabs configured. Click + to add one.</div>
           )}
 
-          {settingsOpen && <Settings onClose={closeSettings} />}
+          {settingsOpen && <Settings onClose={closeSettings} initialTab={settingsInitialTab} />}
         </div>
       </div>
 
