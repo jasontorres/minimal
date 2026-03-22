@@ -8,7 +8,7 @@ interface SettingsProps {
   initialTab?: SettingsTab;
 }
 
-type SettingsTab = 'appearance' | 'tabs' | 'advanced';
+type SettingsTab = 'appearance' | 'tabs' | 'profiles' | 'advanced';
 
 const COMMON_EMOJIS = ['🌐', '💬', '📧', '📝', '📊', '📁', '🔧', '🎵', '🎬', '📷', '🛒', '💼', '📅', '🔒', '🏠', '⭐', '🚀', '💡', '📱', '🖥️'];
 
@@ -34,12 +34,55 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
 
   const profile = config.profiles.find(p => p.id === config.activeProfileId) || config.profiles[0];
 
+  function updateConfig(updates: Partial<AppConfig>) {
+    setConfig({ ...config!, ...updates });
+  }
+
   function updateProfile(updates: Partial<ProfileConfig>) {
-    if (!config) return;
-    const newConfig = { ...config };
+    const newConfig = { ...config! };
     const idx = newConfig.profiles.findIndex(p => p.id === profile.id);
     newConfig.profiles[idx] = { ...profile, ...updates };
     setConfig(newConfig);
+  }
+
+  function updateProfileById(profileId: string, updates: Partial<ProfileConfig>) {
+    const newConfig = { ...config! };
+    const idx = newConfig.profiles.findIndex(p => p.id === profileId);
+    if (idx >= 0) newConfig.profiles[idx] = { ...newConfig.profiles[idx], ...updates };
+    setConfig(newConfig);
+  }
+
+  function addProfile() {
+    const id = 'profile-' + Date.now();
+    const newProfile: ProfileConfig = {
+      id,
+      name: 'New Profile',
+      tabBarPosition: profile.tabBarPosition,
+      tabDisplayMode: profile.tabDisplayMode,
+      tabSize: profile.tabSize,
+      tabs: [],
+    };
+    setConfig({ ...config!, profiles: [...config!.profiles, newProfile] });
+  }
+
+  function deleteProfile(profileId: string) {
+    if (config!.profiles.length <= 1) return;
+    const filtered = config!.profiles.filter(p => p.id !== profileId);
+    const newActiveId = profileId === config!.activeProfileId ? filtered[0].id : config!.activeProfileId;
+    setConfig({ ...config!, profiles: filtered, activeProfileId: newActiveId });
+  }
+
+  function duplicateProfile(profileId: string) {
+    const source = config!.profiles.find(p => p.id === profileId);
+    if (!source) return;
+    const id = 'profile-' + Date.now();
+    const dupe: ProfileConfig = {
+      ...JSON.parse(JSON.stringify(source)),
+      id,
+      name: source.name + ' (copy)',
+      tabs: source.tabs.map(t => ({ ...t, id: t.id + '-' + Date.now() })),
+    };
+    setConfig({ ...config!, profiles: [...config!.profiles, dupe] });
   }
 
   function updateTab(tabId: string, updates: Partial<TabConfig>) {
@@ -89,9 +132,10 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
     }
   }, [activeTab]);
 
-  const tabs: { id: SettingsTab; label: string; icon: string }[] = [
+  const navTabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'tabs', label: 'Tabs', icon: '📑' },
+    { id: 'profiles', label: 'Profiles', icon: '👤' },
     { id: 'advanced', label: 'Advanced', icon: '⚙' },
   ];
 
@@ -100,12 +144,8 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
       <div className="settings-header">
         <h2>Settings</h2>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              className={`btn btn-sm ${activeTab === t.id ? 'btn-primary' : ''}`}
-              onClick={() => setActiveTab(t.id)}
-            >
+          {navTabs.map(t => (
+            <button key={t.id} className={`btn btn-sm ${activeTab === t.id ? 'btn-primary' : ''}`} onClick={() => setActiveTab(t.id)}>
               <span style={{ marginRight: 4 }}>{t.icon}</span> {t.label}
             </button>
           ))}
@@ -115,20 +155,25 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
 
       <div className="settings-body">
         {activeTab === 'appearance' && (
-          <AppearanceSection config={config} profile={profile} onConfigChange={setConfig} onProfileChange={updateProfile} />
+          <AppearanceSection config={config} profile={profile} onConfigChange={updateConfig} onProfileChange={updateProfile} />
         )}
         {activeTab === 'tabs' && (
           <TabsSection
-            tabs={profile.tabs}
-            editingTabId={editingTabId}
-            addingTab={addingTab}
-            onEditTab={setEditingTabId}
-            onUpdateTab={updateTab}
-            onDeleteTab={deleteTab}
-            onAddTab={addTab}
-            onMoveTab={moveTab}
+            tabs={profile.tabs} editingTabId={editingTabId} addingTab={addingTab}
+            onEditTab={setEditingTabId} onUpdateTab={updateTab} onDeleteTab={deleteTab}
+            onAddTab={addTab} onMoveTab={moveTab}
             onStartAdd={() => { setAddingTab(true); setEditingTabId(null); }}
             onCancelAdd={() => setAddingTab(false)}
+          />
+        )}
+        {activeTab === 'profiles' && (
+          <ProfilesSection
+            config={config}
+            onUpdateProfile={updateProfileById}
+            onAddProfile={addProfile}
+            onDeleteProfile={deleteProfile}
+            onDuplicateProfile={duplicateProfile}
+            onSetActive={(id) => updateConfig({ activeProfileId: id })}
           />
         )}
         {activeTab === 'advanced' && (
@@ -151,42 +196,91 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
 
 function AppearanceSection({ config, profile, onConfigChange, onProfileChange }: {
   config: AppConfig; profile: ProfileConfig;
-  onConfigChange: (c: AppConfig) => void; onProfileChange: (u: Partial<ProfileConfig>) => void;
+  onConfigChange: (u: Partial<AppConfig>) => void; onProfileChange: (u: Partial<ProfileConfig>) => void;
 }) {
   return (
     <>
       <div className="settings-section">
         <h3>Theme</h3>
         <SettingRow label="Dark Mode" description="Use dark colors for the browser chrome">
-          <button className={`toggle-switch ${config.darkMode ? 'on' : ''}`} onClick={() => onConfigChange({ ...config, darkMode: !config.darkMode })} />
+          <button className={`toggle-switch ${config.darkMode ? 'on' : ''}`} onClick={() => onConfigChange({ darkMode: !config.darkMode })} />
         </SettingRow>
       </div>
-
       <div className="settings-section">
         <h3>Tab Bar</h3>
         <SettingRow label="Position" description="Where to place the tab bar">
-          <SegmentedControl
-            options={[{ value: 'top', label: 'Top' }, { value: 'left', label: 'Left' }]}
-            value={profile.tabBarPosition}
-            onChange={v => onProfileChange({ tabBarPosition: v as any })}
-          />
+          <SegmentedControl options={[{ value: 'top', label: 'Top' }, { value: 'left', label: 'Left' }]} value={profile.tabBarPosition} onChange={v => onProfileChange({ tabBarPosition: v as any })} />
         </SettingRow>
         <SettingRow label="Display Mode" description="Show icon + title or icon only">
-          <SegmentedControl
-            options={[{ value: 'full', label: 'Full' }, { value: 'icon-only', label: 'Icon Only' }]}
-            value={profile.tabDisplayMode || 'full'}
-            onChange={v => onProfileChange({ tabDisplayMode: v as any })}
-          />
+          <SegmentedControl options={[{ value: 'full', label: 'Full' }, { value: 'icon-only', label: 'Icon Only' }]} value={profile.tabDisplayMode || 'full'} onChange={v => onProfileChange({ tabDisplayMode: v as any })} />
         </SettingRow>
         <SettingRow label="Size" description="Tab bar size">
-          <SegmentedControl
-            options={[{ value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]}
-            value={profile.tabSize || 'medium'}
-            onChange={v => onProfileChange({ tabSize: v as any })}
-          />
+          <SegmentedControl options={[{ value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]} value={profile.tabSize || 'medium'} onChange={v => onProfileChange({ tabSize: v as any })} />
         </SettingRow>
       </div>
     </>
+  );
+}
+
+/* ── Profiles ── */
+
+function ProfilesSection({ config, onUpdateProfile, onAddProfile, onDeleteProfile, onDuplicateProfile, onSetActive }: {
+  config: AppConfig;
+  onUpdateProfile: (id: string, u: Partial<ProfileConfig>) => void;
+  onAddProfile: () => void;
+  onDeleteProfile: (id: string) => void;
+  onDuplicateProfile: (id: string) => void;
+  onSetActive: (id: string) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  return (
+    <div className="settings-section">
+      <h3>Profiles ({config.profiles.length})</h3>
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
+        Profiles let you switch between different sets of tabs for different workstreams. Appearance settings are shared.
+      </p>
+
+      {config.profiles.map(p => (
+        <div key={p.id} className="tab-list-item" style={{ borderColor: p.id === config.activeProfileId ? 'var(--accent)' : undefined }}>
+          {editingId === p.id ? (
+            <div style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="setting-input"
+                value={p.name}
+                onChange={e => onUpdateProfile(p.id, { name: e.target.value })}
+                onKeyDown={e => { if (e.key === 'Enter') setEditingId(null); }}
+                autoFocus
+                style={{ flex: 1 }}
+              />
+              <button className="btn btn-sm btn-primary" onClick={() => setEditingId(null)}>Done</button>
+            </div>
+          ) : (
+            <>
+              <span className="tab-list-icon" style={{ fontSize: 14, color: p.id === config.activeProfileId ? 'var(--accent)' : 'var(--text-dim)' }}>
+                {p.id === config.activeProfileId ? '●' : '○'}
+              </span>
+              <div className="tab-list-info">
+                <div className="tab-list-title">{p.name}</div>
+                <div className="tab-list-url">{p.tabs.length} tab{p.tabs.length !== 1 ? 's' : ''}</div>
+              </div>
+              <div className="tab-list-actions">
+                {p.id !== config.activeProfileId && (
+                  <button className="btn btn-sm" onClick={() => onSetActive(p.id)}>Activate</button>
+                )}
+                <button className="icon-btn" onClick={() => setEditingId(p.id)} title="Rename">✎</button>
+                <button className="icon-btn" onClick={() => onDuplicateProfile(p.id)} title="Duplicate">⧉</button>
+                {config.profiles.length > 1 && (
+                  <button className="icon-btn danger" onClick={() => onDeleteProfile(p.id)} title="Delete">✕</button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+
+      <button className="btn" onClick={onAddProfile} style={{ marginTop: 8, width: '100%' }}>+ New Profile</button>
+    </div>
   );
 }
 
@@ -202,20 +296,16 @@ function TabsSection({ tabs, editingTabId, addingTab, onEditTab, onUpdateTab, on
     <div className="settings-section">
       <h3>Tabs ({tabs.length})</h3>
       <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
-        Add, edit, reorder, or remove your browser tabs. Each tab loads a specific URL.
+        Tabs for the active profile. Each tab loads a specific URL.
       </p>
 
       {tabs.map((tab, idx) => (
         <React.Fragment key={tab.id}>
           {editingTabId === tab.id ? (
-            <TabEditForm
-              tab={tab}
-              onSave={updates => { onUpdateTab(tab.id, updates); onEditTab(null); }}
-              onCancel={() => onEditTab(null)}
-            />
+            <TabEditForm tab={tab} onSave={updates => { onUpdateTab(tab.id, updates); onEditTab(null); }} onCancel={() => onEditTab(null)} />
           ) : (
             <div className="tab-list-item">
-              <TabIconPreview icon={tab.icon} appIcon={tab.appIcon} url={tab.url} />
+              <TabIconPreview icon={tab.icon} appIcon={tab.appIcon} />
               <div className="tab-list-info">
                 <div className="tab-list-title">{tab.title}</div>
                 <div className="tab-list-url">{tab.url}</div>
@@ -240,9 +330,7 @@ function TabsSection({ tabs, editingTabId, addingTab, onEditTab, onUpdateTab, on
   );
 }
 
-/* ── Tab Icon Preview ── */
-
-function TabIconPreview({ icon, appIcon, url }: { icon?: string; appIcon?: string; url: string }) {
+function TabIconPreview({ icon, appIcon }: { icon?: string; appIcon?: string }) {
   if (appIcon) {
     return (
       <span className="tab-list-icon">
@@ -270,88 +358,50 @@ function TabEditForm({ tab, onSave, onCancel, isNew }: {
     const originList = origins.split(',').map(o => o.trim()).filter(Boolean);
     try {
       const urlOrigin = new URL(url).origin;
-      if (!originList.some(o => { try { return new URL(o).origin === urlOrigin; } catch { return false; } })) {
-        originList.unshift(urlOrigin);
-      }
+      if (!originList.some(o => { try { return new URL(o).origin === urlOrigin; } catch { return false; } })) originList.unshift(urlOrigin);
     } catch { /* */ }
 
     onSave({
       ...(isNew ? { id: 'tab-' + Date.now() } : {}),
-      title: title || 'New Tab',
-      url,
-      icon: icon || undefined,
-      appIcon: appIcon || undefined,
-      allowedOrigins: originList,
+      title: title || 'New Tab', url,
+      icon: icon || undefined, appIcon: appIcon || undefined, allowedOrigins: originList,
     });
   }
 
   return (
     <div className="tab-edit-form">
       <div style={{ display: 'flex', gap: 16 }}>
-        {/* Icon preview */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, paddingTop: 4 }}>
           <div style={{
-            width: 48, height: 48, borderRadius: 8,
-            background: 'var(--bg)', border: '1px solid var(--border)',
+            width: 48, height: 48, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
           }}>
-            {appIcon ? (
-              <img src={appIcon} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }}
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            ) : (
-              icon || '🌐'
-            )}
+            {appIcon ? <img src={appIcon} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : (icon || '🌐')}
           </div>
-          <button className="btn btn-sm" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ fontSize: 11 }}>
-            {showEmojiPicker ? 'Close' : 'Pick Icon'}
-          </button>
+          <button className="btn btn-sm" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ fontSize: 11 }}>{showEmojiPicker ? 'Close' : 'Pick Icon'}</button>
         </div>
-
-        {/* Form fields */}
         <div style={{ flex: 1 }}>
-          <FormField label="Title">
-            <input className="setting-input wide" value={title} onChange={e => setTitle(e.target.value)} placeholder="My App" />
-          </FormField>
-          <FormField label="URL">
-            <input className="setting-input wide" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
-          </FormField>
-          <FormField label="App Icon URL" hint="Optional — overrides emoji icon with a custom image">
-            <input className="setting-input wide" value={appIcon} onChange={e => setAppIcon(e.target.value)} placeholder="https://example.com/icon.png" />
-          </FormField>
-          <FormField label="Allowed Origins" hint="Comma-separated. The tab URL origin is auto-added.">
-            <input className="setting-input wide" value={origins} onChange={e => setOrigins(e.target.value)} placeholder="https://example.com, https://auth.example.com" />
-          </FormField>
+          <FormField label="Title"><input className="setting-input wide" value={title} onChange={e => setTitle(e.target.value)} placeholder="My App" /></FormField>
+          <FormField label="URL"><input className="setting-input wide" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" /></FormField>
+          <FormField label="App Icon URL" hint="Optional — overrides emoji with a custom image"><input className="setting-input wide" value={appIcon} onChange={e => setAppIcon(e.target.value)} placeholder="https://example.com/icon.png" /></FormField>
+          <FormField label="Allowed Origins" hint="Comma-separated. Tab URL origin is auto-added."><input className="setting-input wide" value={origins} onChange={e => setOrigins(e.target.value)} placeholder="https://example.com, https://auth.example.com" /></FormField>
         </div>
       </div>
 
-      {/* Emoji picker */}
       {showEmojiPicker && (
         <div style={{ marginTop: 8, padding: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6 }}>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>Pick an icon or type your own emoji</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {COMMON_EMOJIS.map(emoji => (
-              <button
-                key={emoji}
-                onClick={() => { setIcon(emoji); setShowEmojiPicker(false); }}
-                style={{
-                  width: 32, height: 32, fontSize: 18, background: icon === emoji ? 'var(--accent)' : 'var(--bg-secondary)',
-                  border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
+              <button key={emoji} onClick={() => { setIcon(emoji); setShowEmojiPicker(false); }}
+                style={{ width: 32, height: 32, fontSize: 18, background: icon === emoji ? 'var(--accent)' : 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {emoji}
               </button>
             ))}
           </div>
           <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Custom:</span>
-            <input
-              className="setting-input"
-              value={icon}
-              onChange={e => setIcon(e.target.value)}
-              placeholder="Paste any emoji"
-              style={{ width: 120 }}
-            />
+            <input className="setting-input" value={icon} onChange={e => setIcon(e.target.value)} placeholder="Paste any emoji" style={{ width: 120 }} />
             {icon && <button className="btn btn-sm" onClick={() => setIcon('')}>Clear</button>}
           </div>
         </div>
@@ -368,35 +418,19 @@ function TabEditForm({ tab, onSave, onCancel, isNew }: {
 /* ── Advanced ── */
 
 function AdvancedSection({ jsonText, jsonError, setJsonText, setJsonError, onSave }: {
-  jsonText: string; jsonError: string;
-  setJsonText: (s: string) => void; setJsonError: (s: string) => void; onSave: () => void;
+  jsonText: string; jsonError: string; setJsonText: (s: string) => void; setJsonError: (s: string) => void; onSave: () => void;
 }) {
   return (
     <div className="settings-section">
       <h3>JSON Configuration</h3>
-      <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
-        Edit the raw configuration file directly. Be careful — invalid JSON will prevent saving.
-      </p>
+      <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>Edit the raw configuration file directly.</p>
       <textarea
-        className={`json-editor ${jsonError ? 'error' : ''}`}
-        value={jsonText}
-        onChange={e => {
-          setJsonText(e.target.value);
-          try { JSON.parse(e.target.value); setJsonError(''); } catch (err: any) { setJsonError(err.message); }
-        }}
+        className={`json-editor ${jsonError ? 'error' : ''}`} value={jsonText} spellCheck={false} rows={20}
+        onChange={e => { setJsonText(e.target.value); try { JSON.parse(e.target.value); setJsonError(''); } catch (err: any) { setJsonError(err.message); } }}
         onKeyDown={e => {
-          if (e.key === 'Tab') {
-            e.preventDefault();
-            const ta = e.target as HTMLTextAreaElement;
-            const start = ta.selectionStart;
-            const end = ta.selectionEnd;
-            setJsonText(jsonText.substring(0, start) + '  ' + jsonText.substring(end));
-            setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + 2; }, 0);
-          }
+          if (e.key === 'Tab') { e.preventDefault(); const ta = e.target as HTMLTextAreaElement; const s = ta.selectionStart; const end = ta.selectionEnd; setJsonText(jsonText.substring(0, s) + '  ' + jsonText.substring(end)); setTimeout(() => { ta.selectionStart = ta.selectionEnd = s + 2; }, 0); }
           if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); onSave(); }
         }}
-        spellCheck={false}
-        rows={20}
       />
       {jsonError && <div style={{ color: 'var(--error)', fontSize: 12, marginTop: 4 }}>{jsonError}</div>}
     </div>
@@ -417,26 +451,12 @@ function SettingRow({ label, description, children }: { label: string; descripti
   );
 }
 
-function SegmentedControl({ options, value, onChange }: {
-  options: { value: string; label: string }[]; value: string; onChange: (v: string) => void;
-}) {
+function SegmentedControl({ options, value, onChange }: { options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) {
   return (
     <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 4, overflow: 'hidden' }}>
       {options.map(opt => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            background: value === opt.value ? 'var(--accent)' : 'var(--bg-secondary)',
-            color: value === opt.value ? '#fff' : 'var(--text)',
-            border: 'none',
-            borderRight: '1px solid var(--border)',
-            cursor: 'pointer',
-            transition: 'background 0.1s',
-          }}
-        >
+        <button key={opt.value} onClick={() => onChange(opt.value)}
+          style={{ padding: '4px 12px', fontSize: 12, background: value === opt.value ? 'var(--accent)' : 'var(--bg-secondary)', color: value === opt.value ? '#fff' : 'var(--text)', border: 'none', borderRight: '1px solid var(--border)', cursor: 'pointer' }}>
           {opt.label}
         </button>
       ))}
@@ -448,8 +468,7 @@ function FormField({ label, hint, children }: { label: string; hint?: string; ch
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>
-        {label}
-        {hint && <span style={{ marginLeft: 6, fontStyle: 'italic', opacity: 0.7 }}>{hint}</span>}
+        {label}{hint && <span style={{ marginLeft: 6, fontStyle: 'italic', opacity: 0.7 }}>{hint}</span>}
       </div>
       {children}
     </div>

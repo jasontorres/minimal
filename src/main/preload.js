@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideViews: () => ipcRenderer.send('hide-views'),
   showViews: () => ipcRenderer.send('show-views'),
 
+  // Profiles
+  switchProfile: (profileId) => ipcRenderer.send('switch-profile', profileId),
+
   // Split view
   setSplitMode: (mode) => ipcRenderer.send('set-split-mode', mode),
   getSplitMode: () => ipcRenderer.invoke('get-split-mode'),

@@ -84,6 +84,7 @@ html, body, #root {
 }
 
 .title-bar-btn:hover { background: var(--bg-hover); }
+.title-bar-btn.profile-btn { width: auto; padding: 0 10px; font-size: 12px; gap: 2px; }
 .title-bar-btn.close:hover { background: #e81123; color: white; }
 
 /* ── Dropdown ── */

@@ -49,6 +49,7 @@ export interface ElectronAPI {
   setTabSize: (size: string) => void;
   hideViews: () => void;
   showViews: () => void;
+  switchProfile: (profileId: string) => void;
   setSplitMode: (mode: SplitMode) => void;
   getSplitMode: () => Promise<SplitMode>;
   toggleDevTools: () => void;

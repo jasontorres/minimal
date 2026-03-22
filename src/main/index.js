@@ -320,6 +320,29 @@ function setupIpc() {
     });
   });
 
+  // Switch profile — destroys views and reloads with new profile's tabs
+  ipcMain.on('switch-profile', (_event, profileId) => {
+    const config = configStore.getConfig();
+    const profile = config.profiles.find(p => p.id === profileId);
+    if (!profile) return;
+
+    configStore.updateConfig({ activeProfileId: profileId });
+    browserManager.destroy();
+
+    browserManager.setTabBarPosition(profile.tabBarPosition || 'top');
+    browserManager.setTabDisplayMode(profile.tabDisplayMode || 'full');
+    browserManager.setTabSize(profile.tabSize || 'medium');
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('config-loaded', {
+        tabs: profile.tabs,
+        activeTabId: profile.tabs[0]?.id,
+        config: configStore.getConfig()
+      });
+      browserManager.loadTabs(profile.tabs);
+    }
+  });
+
   // Split view
   ipcMain.on('set-split-mode', (_event, mode) => {
     browserManager.setSplitMode(mode);
