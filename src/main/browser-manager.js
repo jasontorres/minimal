@@ -479,7 +479,9 @@ class BrowserManager {
     this.authWindows.clear();
 
     for (const { view } of this.views.values()) {
-      this.mainWindow?.removeBrowserView(view);
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.removeBrowserView(view);
+      }
       view.webContents.close();
     }
     this.views.clear();
