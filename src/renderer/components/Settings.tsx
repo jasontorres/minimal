@@ -34,6 +34,15 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
     });
   }, []);
 
+  // Must be before early returns — React requires consistent hook count
+  useEffect(() => {
+    if (activeTab === 'advanced' && config) {
+      const editable = { ...config };
+      delete editable.windowState;
+      setJsonText(JSON.stringify(editable, null, 2));
+    }
+  }, [activeTab, config]);
+
   if (loadError) {
     return (
       <div className="settings-overlay">
@@ -153,14 +162,6 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
       setStatus({ text: result.error || 'Save failed', type: 'error' });
     }
   }
-
-  useEffect(() => {
-    if (activeTab === 'advanced' && config) {
-      const editable = { ...config };
-      delete editable.windowState;
-      setJsonText(JSON.stringify(editable, null, 2));
-    }
-  }, [activeTab]);
 
   const navTabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
