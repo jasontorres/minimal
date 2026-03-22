@@ -28,9 +28,9 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
   }, [menuOpen, profileMenuOpen]);
 
   function openMenu() { api.hideViews(); setMenuOpen(true); }
-  function closeMenu() { setMenuOpen(false); api.showViews(); }
+  function closeMenu(restoreViews = true) { setMenuOpen(false); if (restoreViews) api.showViews(); }
   function openProfileMenu() { api.hideViews(); setProfileMenuOpen(true); }
-  function closeProfileMenu() { setProfileMenuOpen(false); api.showViews(); }
+  function closeProfileMenu(restoreViews = true) { setProfileMenuOpen(false); if (restoreViews) api.showViews(); }
 
   const activeProfile = profiles.find(p => p.id === activeProfileId);
 
@@ -63,7 +63,7 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
                 </button>
               ))}
               <div className="dropdown-sep" />
-              <button className="dropdown-item" onClick={() => { onOpenSettings('profiles'); closeProfileMenu(); }}>
+              <button className="dropdown-item" onClick={() => { closeProfileMenu(false); onOpenSettings('profiles'); }}>
                 <span className="icon">✎</span>
                 <span>Manage Profiles</span>
               </button>
@@ -82,7 +82,7 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
               <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
             <div className="dropdown-sep" />
-            <button className="dropdown-item" onClick={() => { onOpenSettings(); closeMenu(); }}>
+            <button className="dropdown-item" onClick={() => { closeMenu(false); onOpenSettings(); }}>
               <span className="icon">⚙</span>
               <span>Settings</span>
             </button>
