@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
+import LayoutPicker from './LayoutPicker';
 
 const api = window.electronAPI;
 
 interface TitleBarProps {
   isDark: boolean;
+  tabCount: number;
   onToggleDarkMode: () => void;
   onOpenSettings: () => void;
 }
 
-export default function TitleBar({ isDark, onToggleDarkMode, onOpenSettings }: TitleBarProps) {
+export default function TitleBar({ isDark, tabCount, onToggleDarkMode, onOpenSettings }: TitleBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +39,7 @@ export default function TitleBar({ isDark, onToggleDarkMode, onOpenSettings }: T
     <div className="title-bar">
       <div className="title-bar-content">Minimal Browser</div>
       <div className="title-bar-controls">
+        {tabCount >= 2 && <LayoutPicker tabCount={tabCount} />}
         <div className="dropdown-wrapper" ref={wrapperRef} onClick={e => e.stopPropagation()}>
           <button className="title-bar-btn" onClick={handleToggle} title="Menu">⚙</button>
           <div className={`dropdown-menu ${menuOpen ? 'open' : ''}`}>

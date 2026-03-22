@@ -30,8 +30,9 @@ class BrowserManager {
     this.tabDisplayMode = 'full';
     this.tabSize = 'medium';
     this.authWindows = new Set();
-    // Persistent session — cookies, localStorage, etc. survive restarts
     this.persistentSession = null;
+    this.splitMode = 'single'; // 'single' | 'split-h' | 'split-v' | 'grid'
+    this.tabOrder = []; // ordered list of tab IDs for layout
   }
 
   getSession() {
@@ -43,24 +44,33 @@ class BrowserManager {
 
   setMainWindow(window) {
     this.mainWindow = window;
-    window.on('resize', () => this.updateActiveBounds());
-    window.on('maximize', () => this.updateActiveBounds());
-    window.on('unmaximize', () => this.updateActiveBounds());
+    window.on('resize', () => this.layoutViews());
+    window.on('maximize', () => this.layoutViews());
+    window.on('unmaximize', () => this.layoutViews());
+  }
+
+  setSplitMode(mode) {
+    this.splitMode = mode;
+    this.layoutViews();
+  }
+
+  getSplitMode() {
+    return this.splitMode;
   }
 
   setTabBarPosition(position) {
     this.tabBarPosition = position;
-    this.updateActiveBounds();
+    this.layoutViews();
   }
 
   setTabDisplayMode(mode) {
     this.tabDisplayMode = mode;
-    this.updateActiveBounds();
+    this.layoutViews();
   }
 
   setTabSize(size) {
     this.tabSize = size;
-    this.updateActiveBounds();
+    this.layoutViews();
   }
 
   getContentBounds() {
@@ -300,6 +310,7 @@ class BrowserManager {
   }
 
   loadTabs(tabs) {
+    this.tabOrder = tabs.map(t => t.id);
     for (const tab of tabs) {
       const view = this.createView(tab);
       this.mainWindow.addBrowserView(view);
@@ -307,31 +318,107 @@ class BrowserManager {
     }
 
     if (tabs.length > 0) {
-      this.switchTo(tabs[0].id);
+      this.activeTabId = tabs[0].id;
+      this.layoutViews();
     }
   }
 
   switchTo(tabId) {
     const entry = this.views.get(tabId);
     if (!entry) return;
-
-    if (this.activeTabId && this.activeTabId !== tabId) {
-      const current = this.views.get(this.activeTabId);
-      if (current) {
-        current.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
-      }
-    }
-
     this.activeTabId = tabId;
-    this.mainWindow.setTopBrowserView(entry.view);
-    entry.view.setBounds(this.getContentBounds());
+    this.layoutViews();
   }
 
-  updateActiveBounds() {
-    if (!this.activeTabId || !this.mainWindow) return;
-    const entry = this.views.get(this.activeTabId);
-    if (entry) {
-      entry.view.setBounds(this.getContentBounds());
+  /**
+   * Compute split bounds for N views within a content area.
+   */
+  computeSplitBounds(content, count, mode) {
+    const { x, y, width, height } = content;
+    const gap = 1; // 1px gap between panes
+
+    if (count <= 1 || mode === 'single') {
+      return [{ x, y, width, height }];
+    }
+
+    if (mode === 'split-v') {
+      // Side by side (vertical split = vertical divider)
+      const paneW = Math.floor((width - gap * (count - 1)) / count);
+      return Array.from({ length: count }, (_, i) => ({
+        x: x + i * (paneW + gap),
+        y,
+        width: i === count - 1 ? width - i * (paneW + gap) : paneW,
+        height,
+      }));
+    }
+
+    if (mode === 'split-h') {
+      // Stacked (horizontal split = horizontal divider)
+      const paneH = Math.floor((height - gap * (count - 1)) / count);
+      return Array.from({ length: count }, (_, i) => ({
+        x,
+        y: y + i * (paneH + gap),
+        width,
+        height: i === count - 1 ? height - i * (paneH + gap) : paneH,
+      }));
+    }
+
+    if (mode === 'grid') {
+      const cols = count <= 2 ? count : 2;
+      const rows = Math.ceil(count / cols);
+      const paneW = Math.floor((width - gap * (cols - 1)) / cols);
+      const paneH = Math.floor((height - gap * (rows - 1)) / rows);
+      return Array.from({ length: count }, (_, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const isLastCol = col === cols - 1;
+        const isLastRow = row === rows - 1;
+        return {
+          x: x + col * (paneW + gap),
+          y: y + row * (paneH + gap),
+          width: isLastCol ? width - col * (paneW + gap) : paneW,
+          height: isLastRow ? height - row * (paneH + gap) : paneH,
+        };
+      });
+    }
+
+    // Fallback single
+    return [{ x, y, width, height }];
+  }
+
+  /**
+   * Master layout function — positions all views based on split mode.
+   */
+  layoutViews() {
+    if (!this.mainWindow || this.views.size === 0) return;
+
+    const content = this.getContentBounds();
+    const hidden = { x: 0, y: 0, width: 0, height: 0 };
+
+    if (this.splitMode === 'single') {
+      // Single mode: only active view visible
+      for (const [id, { view }] of this.views) {
+        if (id === this.activeTabId) {
+          this.mainWindow.setTopBrowserView(view);
+          view.setBounds(content);
+        } else {
+          view.setBounds(hidden);
+        }
+      }
+      return;
+    }
+
+    // Split mode: show all tabs
+    const tabIds = this.tabOrder.filter(id => this.views.has(id));
+    const bounds = this.computeSplitBounds(content, tabIds.length, this.splitMode);
+
+    for (const [id, { view }] of this.views) {
+      const idx = tabIds.indexOf(id);
+      if (idx >= 0 && idx < bounds.length) {
+        view.setBounds(bounds[idx]);
+      } else {
+        view.setBounds(hidden);
+      }
     }
   }
 
@@ -375,19 +462,14 @@ class BrowserManager {
   }
 
   hideActive() {
-    if (!this.activeTabId) return;
-    const entry = this.views.get(this.activeTabId);
-    if (entry) {
-      entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+    const hidden = { x: 0, y: 0, width: 0, height: 0 };
+    for (const { view } of this.views.values()) {
+      view.setBounds(hidden);
     }
   }
 
   showActive() {
-    if (!this.activeTabId) return;
-    const entry = this.views.get(this.activeTabId);
-    if (entry) {
-      entry.view.setBounds(this.getContentBounds());
-    }
+    this.layoutViews();
   }
 
   destroy() {

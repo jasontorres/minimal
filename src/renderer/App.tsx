@@ -112,6 +112,7 @@ export default function App() {
     <div className="app">
       <TitleBar
         isDark={isDark}
+        tabCount={tabs.length}
         onToggleDarkMode={toggleDarkMode}
         onOpenSettings={openSettings}
       />

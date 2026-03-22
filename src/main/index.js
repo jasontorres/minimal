@@ -320,6 +320,15 @@ function setupIpc() {
     });
   });
 
+  // Split view
+  ipcMain.on('set-split-mode', (_event, mode) => {
+    browserManager.setSplitMode(mode);
+  });
+
+  ipcMain.handle('get-split-mode', () => {
+    return browserManager.getSplitMode();
+  });
+
   // Developer tools — open as detached popup window
   ipcMain.on('toggle-devtools', () => {
     if (!mainWindow) return;

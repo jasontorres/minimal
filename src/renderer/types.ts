@@ -23,6 +23,8 @@ export interface AppConfig {
   windowState?: any;
 }
 
+export type SplitMode = 'single' | 'split-v' | 'split-h' | 'grid';
+
 export interface TabUpdateData {
   tabId: string;
   isLoading?: boolean;
@@ -47,6 +49,8 @@ export interface ElectronAPI {
   setTabSize: (size: string) => void;
   hideViews: () => void;
   showViews: () => void;
+  setSplitMode: (mode: SplitMode) => void;
+  getSplitMode: () => Promise<SplitMode>;
   toggleDevTools: () => void;
   reloadApp: () => void;
   openExternal: (url: string) => void;

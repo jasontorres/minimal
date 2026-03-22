@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideViews: () => ipcRenderer.send('hide-views'),
   showViews: () => ipcRenderer.send('show-views'),
 
+  // Split view
+  setSplitMode: (mode) => ipcRenderer.send('set-split-mode', mode),
+  getSplitMode: () => ipcRenderer.invoke('get-split-mode'),
+
   // Developer tools
   toggleDevTools: () => ipcRenderer.send('toggle-devtools'),
 
