@@ -84,7 +84,10 @@ export default function LayoutPicker({ tabCount }: LayoutPickerProps) {
   return (
     <div className="dropdown-wrapper" onClick={e => e.stopPropagation()}>
       <button className="title-bar-btn" onClick={toggle} title="Layout">
-        <LayoutIcon mode={mode} active={false} />
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="1" width="6" height="6" rx="1" opacity="0.7" /><rect x="9" y="1" width="6" height="6" rx="1" opacity="0.7" />
+          <rect x="1" y="9" width="6" height="6" rx="1" opacity="0.7" /><rect x="9" y="9" width="6" height="6" rx="1" opacity="0.7" />
+        </svg>
       </button>
       {open && (
         <div className="dropdown-menu open" style={{ padding: '8px' }}>

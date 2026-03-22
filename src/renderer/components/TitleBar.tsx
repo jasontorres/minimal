@@ -1,8 +1,41 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import LayoutPicker from './LayoutPicker';
 import type { ProfileConfig } from '../types';
 
 const api = window.electronAPI;
+
+// ── SVG Icons (10x10 viewBox, Windows 11 style) ──
+
+const IconMinimize = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10"><line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" strokeWidth="1" /></svg>
+);
+
+const IconMaximize = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
+);
+
+const IconClose = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1" /><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="1" /></svg>
+);
+
+const IconSettings = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+    <circle cx="8" cy="8" r="2.5" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.9 2.9l1.4 1.4M11.7 11.7l1.4 1.4M13.1 2.9l-1.4 1.4M4.3 11.7l-1.4 1.4" />
+  </svg>
+);
+
+const IconGrid = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="1" y="1" width="6" height="6" rx="1" opacity="0.7" /><rect x="9" y="1" width="6" height="6" rx="1" opacity="0.7" />
+    <rect x="1" y="9" width="6" height="6" rx="1" opacity="0.7" /><rect x="9" y="9" width="6" height="6" rx="1" opacity="0.7" />
+  </svg>
+);
+
+const IconChevron = () => (
+  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2"><polyline points="1,2.5 4,5.5 7,2.5" /></svg>
+);
+
+// ── Component ──
 
 interface TitleBarProps {
   isDark: boolean;
@@ -49,15 +82,11 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
               <span style={{ fontSize: 11, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {activeProfile?.name || 'Profile'}
               </span>
-              <span style={{ fontSize: 8, marginLeft: 3 }}>▼</span>
+              <IconChevron />
             </button>
             <div className={`dropdown-menu ${profileMenuOpen ? 'open' : ''}`}>
               {profiles.map(p => (
-                <button
-                  key={p.id}
-                  className="dropdown-item"
-                  onClick={() => { onSwitchProfile(p.id); closeProfileMenu(); }}
-                >
+                <button key={p.id} className="dropdown-item" onClick={() => { onSwitchProfile(p.id); closeProfileMenu(); }}>
                   <span className="icon">{p.id === activeProfileId ? '●' : '○'}</span>
                   <span>{p.name}</span>
                 </button>
@@ -75,7 +104,9 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
 
         {/* Settings menu */}
         <div className="dropdown-wrapper" onClick={e => e.stopPropagation()}>
-          <button className="title-bar-btn" onClick={e => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); }} title="Menu">⚙</button>
+          <button className="title-bar-btn" onClick={e => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); }} title="Menu">
+            <IconSettings />
+          </button>
           <div className={`dropdown-menu ${menuOpen ? 'open' : ''}`}>
             <button className="dropdown-item" onClick={() => { onToggleDarkMode(); closeMenu(); }}>
               <span className="icon">{isDark ? '☀' : '☽'}</span>
@@ -98,9 +129,10 @@ export default function TitleBar({ isDark, tabCount, profiles, activeProfileId, 
           </div>
         </div>
 
-        <button className="title-bar-btn" onClick={() => api.minimizeWindow()} title="Minimize">_</button>
-        <button className="title-bar-btn" onClick={() => api.maximizeWindow()} title="Maximize">□</button>
-        <button className="title-bar-btn close" onClick={() => api.closeWindow()} title="Close">×</button>
+        {/* Window controls — Windows 11 style SVGs */}
+        <button className="title-bar-btn" onClick={() => api.minimizeWindow()} title="Minimize"><IconMinimize /></button>
+        <button className="title-bar-btn" onClick={() => api.maximizeWindow()} title="Maximize"><IconMaximize /></button>
+        <button className="title-bar-btn close" onClick={() => api.closeWindow()} title="Close"><IconClose /></button>
       </div>
     </div>
   );
