@@ -21,16 +21,46 @@ export default function Settings({ onClose, initialTab }: SettingsProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [addingTab, setAddingTab] = useState(initialTab === 'tabs');
 
+  const [loadError, setLoadError] = useState('');
+
   useEffect(() => {
     api.getConfig().then(cfg => {
       setConfig(cfg);
       const editable = { ...cfg };
       delete editable.windowState;
       setJsonText(JSON.stringify(editable, null, 2));
+    }).catch(err => {
+      setLoadError(String(err));
     });
   }, []);
 
-  if (!config) return null;
+  if (loadError) {
+    return (
+      <div className="settings-overlay">
+        <div className="settings-header">
+          <h2>Settings</h2>
+          <button className="settings-close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="settings-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--error)' }}>Failed to load config: {loadError}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div className="settings-overlay">
+        <div className="settings-header">
+          <h2>Settings</h2>
+          <button className="settings-close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="settings-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--text-dim)' }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   const profile = config.profiles.find(p => p.id === config.activeProfileId) || config.profiles[0];
 
