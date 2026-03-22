@@ -1,0 +1,399 @@
+/**
+ * Minimalist CSS for the tab bar with custom title bar
+ */
+
+:root {
+  --bg-color: #ffffff;
+  --tab-bg: #f5f5f5;
+  --tab-active: #ffffff;
+  --tab-hover: #ebebeb;
+  --text-color: #333333;
+  --text-dim: #888888;
+  --border-color: #e0e0e0;
+  --accent-color: #4a9eff;
+  --notification-bg: #ff6b6b;
+  --notification-text: #ffffff;
+  --title-bar-height: 32px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 13px;
+  color: var(--text-color);
+  background: var(--bg-color);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Title Bar */
+.title-bar {
+  height: var(--title-bar-height);
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.title-bar-drag-region {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  -webkit-app-region: drag;
+}
+
+.title-bar-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.app-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-color);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.title-bar-controls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-button {
+  width: 46px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  transition: background 0.1s ease;
+}
+
+.title-bar-button:hover {
+  background: var(--tab-hover);
+}
+
+.title-bar-button.close-button:hover {
+  background: #e81123;
+  color: white;
+}
+
+.title-bar-button svg {
+  display: block;
+}
+
+/* Tab bar */
+.tab-bar {
+  height: 40px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Left positioned tab bar */
+.tab-bar.position-left {
+  height: calc(100vh - var(--title-bar-height));
+  width: 40px;
+  flex-direction: column;
+  border-bottom: none;
+  border-right: 1px solid var(--border-color);
+}
+
+.tab-bar.position-left .tabs-container {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.tab-bar.position-left .tab {
+  min-width: unset;
+  max-width: unset;
+  min-height: 120px;
+  max-height: 200px;
+  width: 100%;
+  border-right: none;
+  border-bottom: 1px solid var(--border-color);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* Right positioned tab bar */
+.tab-bar.position-right {
+  height: calc(100vh - var(--title-bar-height));
+  width: 40px;
+  flex-direction: column-reverse;
+  border-bottom: none;
+  border-left: 1px solid var(--border-color);
+}
+
+.tab-bar.position-right .tabs-container {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.tab-bar.position-right .tab {
+  min-width: unset;
+  max-width: unset;
+  min-height: 120px;
+  max-height: 200px;
+  width: 100%;
+  border-right: none;
+  border-top: 1px solid var(--border-color);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.tabs-container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+}
+
+/* Hide scrollbar but keep functionality */
+.tabs-container::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+  background: transparent;
+}
+
+/* Show scrollbar for vertical tabs on hover */
+.tab-bar.position-left .tabs-container::-webkit-scrollbar,
+.tab-bar.position-right .tabs-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-bar.position-left .tabs-container::-webkit-scrollbar-thumb,
+.tab-bar.position-right .tabs-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.tab-bar.position-left .tabs-container:hover::-webkit-scrollbar-thumb,
+.tab-bar.position-right .tabs-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Tab */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 100%;
+  min-width: 120px;
+  max-width: 200px;
+  background: var(--tab-bg);
+  border-right: 1px solid var(--border-color);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s ease;
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--tab-hover);
+}
+
+.tab.active {
+  background: var(--tab-active);
+  border-bottom: 2px solid var(--accent-color);
+  border-top: none;
+  border-right: 1px solid var(--border-color);
+}
+
+.tab-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.tab-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color);
+}
+
+.tab.loading .tab-title::after {
+  content: '...';
+  animation: loading 1s steps(3) infinite;
+}
+
+@keyframes loading {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+}
+
+/* Close button (optional, for future use) */
+.tab-close {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.1s ease, background 0.1s ease;
+  flex-shrink: 0;
+}
+
+.tab:hover .tab-close {
+  opacity: 0.5;
+}
+
+.tab-close:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-close::before {
+  content: '×';
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Settings button */
+.settings-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.settings-button:hover {
+  background: var(--tab-hover);
+}
+
+.settings-button:active {
+  background: var(--tab-bg);
+  transform: scale(0.95);
+}
+
+.settings-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Notification */
+.notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--notification-bg);
+  color: var(--notification-text);
+  padding: 12px 16px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  max-width: 320px;
+  z-index: 1000;
+  animation: slideIn 0.2s ease-out;
+}
+
+.notification.hidden {
+  display: none;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Drag indicator (for future tab reordering) */
+.tab.dragging {
+  opacity: 0.5;
+}
+
+/* Browser container */
+.browser-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  /* Ensure webview doesn't capture pointer events from title bar */
+  pointer-events: auto;
+}
+
+.webview {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  /* Allow webview to receive pointer events */
+  pointer-events: auto;
+}
+
+.placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  pointer-events: none;
+}
