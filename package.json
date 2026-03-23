@@ -21,6 +21,8 @@
     "@types/react-dom": "^19.2.3",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
+    "jimp": "^0.22.12",
+    "png-to-ico": "^2.1.8",
     "typescript": "^5.7.3",
     "vite": "^6.0.11"
   },
@@ -42,14 +44,18 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-win-${arch}.${ext}",
       "signAndEditExecutable": false
     },
@@ -57,18 +63,24 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.png",
-      "uninstallerIcon": "build/icon.png"
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     },
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "build/icon.png",
@@ -81,8 +93,16 @@
     },
     "dmg": {
       "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ]
     },
     "linux": {
