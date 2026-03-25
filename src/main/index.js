@@ -7,7 +7,6 @@ const {
   BrowserWindow,
   ipcMain,
   Menu,
-  globalShortcut,
   nativeTheme
 } = require('electron');
 const path = require('path');
@@ -180,33 +179,40 @@ function initializeTabs() {
   browserManager.loadTabs(tabs);
 }
 
-function registerShortcuts() {
-  globalShortcut.register('CommandOrControl+R', () => {
-    browserManager.reloadActiveTab();
-  });
+function registerWindowShortcuts(win) {
+  win.webContents.on('before-input-event', (event, input) => {
+    if (!input.control && !input.meta) return;
+    if (input.type !== 'keyDown') return;
 
-  globalShortcut.register('CommandOrControl+W', () => {
-    if (mainWindow) mainWindow.close();
-  });
+    const key = input.key.toLowerCase();
 
-  // Ctrl/Cmd+1-9 to switch tabs
-  for (let i = 1; i <= 9; i++) {
-    globalShortcut.register(`CommandOrControl+${i}`, () => {
+    if (key === 'r') {
+      event.preventDefault();
+      browserManager.reloadActiveTab();
+      return;
+    }
+
+    if (key === 'w') {
+      event.preventDefault();
+      if (mainWindow) mainWindow.close();
+      return;
+    }
+
+    // Ctrl/Cmd+1-9 to switch tabs
+    const num = parseInt(key, 10);
+    if (num >= 1 && num <= 9) {
+      event.preventDefault();
       const profile = configStore.getActiveProfile();
       const tabs = profile?.tabs || [];
-      const idx = i === 9 ? tabs.length - 1 : i - 1;
+      const idx = num === 9 ? tabs.length - 1 : num - 1;
       if (tabs[idx]) {
         browserManager.switchTo(tabs[idx].id);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('tab-switched', { tabId: tabs[idx].id });
         }
       }
-    });
-  }
-}
-
-function unregisterShortcuts() {
-  globalShortcut.unregisterAll();
+    }
+  });
 }
 
 function setupIpc() {
@@ -387,7 +393,7 @@ app.whenReady().then(() => {
   configStore.init();
   createWindow();
   setupIpc();
-  registerShortcuts();
+  registerWindowShortcuts(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -403,5 +409,4 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  unregisterShortcuts();
 });
