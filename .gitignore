@@ -27,7 +27,7 @@ Thumbs.db
 
 # Electron
 *.dmg
-*.exe
+# *.exe
 *.deb
 *.AppImage
 
