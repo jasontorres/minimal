@@ -2,6 +2,12 @@
 
 A minimalist, allow-listed desktop browser built with Electron and TypeScript.
 
+![Minimal Browser Screenshot](d-2.jpg)
+
+## Download
+
+Download the latest release from the [releases page](https://github.com/jasontorres/minimal/download).
+
 ## Features
 
 - **Fixed tab list**: Configure tabs in a JSON config file
