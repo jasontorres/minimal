@@ -20,6 +20,7 @@ export interface AppConfig {
   activeProfileId: string;
   darkMode: boolean;
   profiles: ProfileConfig[];
+  savedLayouts?: SavedLayout[];
   windowState?: any;
 }
 
@@ -30,6 +31,26 @@ export interface TabUpdateData {
   isLoading?: boolean;
   title?: string;
   favicon?: string;
+}
+
+export interface PaneInfo {
+  tabId: string;
+  title: string;
+  isPinned: boolean;
+  headerBounds: { x: number; y: number; width: number; height: number };
+}
+
+export interface PaneLayoutData {
+  panes: PaneInfo[];
+  splitMode: SplitMode;
+}
+
+export interface SavedLayout {
+  id: string;
+  name: string;
+  splitMode: SplitMode;
+  tabIds: string[];
+  pinnedTabIds: string[];
 }
 
 export interface ElectronAPI {
@@ -53,6 +74,12 @@ export interface ElectronAPI {
   switchProfile: (profileId: string) => void;
   setSplitMode: (mode: SplitMode) => void;
   getSplitMode: () => Promise<SplitMode>;
+  closePane: (tabId: string) => void;
+  togglePinPane: (tabId: string) => void;
+  saveLayout: (name: string) => Promise<SavedLayout>;
+  getSavedLayouts: () => Promise<SavedLayout[]>;
+  loadLayout: (layoutId: string) => void;
+  deleteLayout: (layoutId: string) => Promise<boolean>;
   toggleDevTools: () => void;
   reloadApp: () => void;
   openExternal: (url: string) => void;
@@ -60,6 +87,7 @@ export interface ElectronAPI {
   onTabUpdated: (callback: (data: TabUpdateData) => void) => void;
   onNavigationBlocked: (callback: (data: { tabId: string; url: string; reason: string }) => void) => void;
   onTabSwitched: (callback: (data: { tabId: string }) => void) => void;
+  onPaneLayout: (callback: (data: PaneLayoutData) => void) => void;
   removeAllListeners: (channel: string) => void;
 }
 

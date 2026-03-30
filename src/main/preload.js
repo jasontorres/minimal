@@ -43,6 +43,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSplitMode: (mode) => ipcRenderer.send('set-split-mode', mode),
   getSplitMode: () => ipcRenderer.invoke('get-split-mode'),
 
+  // Pane actions
+  closePane: (tabId) => ipcRenderer.send('close-pane', tabId),
+  togglePinPane: (tabId) => ipcRenderer.send('toggle-pin-pane', tabId),
+
+  // Saved layouts
+  saveLayout: (name) => ipcRenderer.invoke('save-layout', name),
+  getSavedLayouts: () => ipcRenderer.invoke('get-saved-layouts'),
+  loadLayout: (layoutId) => ipcRenderer.send('load-layout', layoutId),
+  deleteLayout: (layoutId) => ipcRenderer.invoke('delete-layout', layoutId),
+
   // Developer tools
   toggleDevTools: () => ipcRenderer.send('toggle-devtools'),
 
@@ -64,6 +74,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onTabSwitched: (callback) => {
     ipcRenderer.on('tab-switched', (_event, data) => callback(data));
+  },
+  onPaneLayout: (callback) => {
+    ipcRenderer.on('pane-layout', (_event, data) => callback(data));
   },
 
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)

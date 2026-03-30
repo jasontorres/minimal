@@ -5,6 +5,8 @@
 const { BrowserView, BrowserWindow, Menu, shell, session } = require('electron');
 
 const TITLE_BAR_HEIGHT = 32;
+const PANE_HEADER_HEIGHT = 26;
+const PANE_GAP = 2;
 
 const TAB_TOP_SIZES = { small: 28, medium: 36, large: 44 };
 const TAB_LEFT_SIZES = { small: 120, medium: 160, large: 200 };
@@ -33,6 +35,8 @@ class BrowserManager {
     this.persistentSession = null;
     this.splitMode = 'single'; // 'single' | 'split-h' | 'split-v' | 'grid'
     this.tabOrder = []; // ordered list of tab IDs for layout
+    this.pinnedTabs = new Set(); // pinned tab IDs stay visible in split
+    this.closedPanes = new Set(); // tabs removed from split view
   }
 
   getSession() {
@@ -51,6 +55,7 @@ class BrowserManager {
 
   setSplitMode(mode) {
     this.splitMode = mode;
+    this.closedPanes.clear(); // reset closed panes when changing mode
     this.layoutViews();
   }
 
@@ -333,35 +338,40 @@ class BrowserManager {
 
   /**
    * Compute split bounds for N views within a content area.
+   * Returns { full, view } where full is the total pane area (including header)
+   * and view is the BrowserView area (below the header).
    */
   computeSplitBounds(content, count, mode) {
     const { x, y, width, height } = content;
-    const gap = 1; // 1px gap between panes
+    const gap = PANE_GAP;
+    const headerH = (mode !== 'single' && count > 1) ? PANE_HEADER_HEIGHT : 0;
 
     if (count <= 1 || mode === 'single') {
-      return [{ x, y, width, height }];
+      return [{ full: { x, y, width, height }, view: { x, y, width, height } }];
     }
 
     if (mode === 'split-v') {
-      // Side by side (vertical split = vertical divider)
       const paneW = Math.floor((width - gap * (count - 1)) / count);
-      return Array.from({ length: count }, (_, i) => ({
-        x: x + i * (paneW + gap),
-        y,
-        width: i === count - 1 ? width - i * (paneW + gap) : paneW,
-        height,
-      }));
+      return Array.from({ length: count }, (_, i) => {
+        const px = x + i * (paneW + gap);
+        const pw = i === count - 1 ? width - i * (paneW + gap) : paneW;
+        return {
+          full: { x: px, y, width: pw, height },
+          view: { x: px, y: y + headerH, width: pw, height: height - headerH },
+        };
+      });
     }
 
     if (mode === 'split-h') {
-      // Stacked (horizontal split = horizontal divider)
       const paneH = Math.floor((height - gap * (count - 1)) / count);
-      return Array.from({ length: count }, (_, i) => ({
-        x,
-        y: y + i * (paneH + gap),
-        width,
-        height: i === count - 1 ? height - i * (paneH + gap) : paneH,
-      }));
+      return Array.from({ length: count }, (_, i) => {
+        const py = y + i * (paneH + gap);
+        const ph = i === count - 1 ? height - i * (paneH + gap) : paneH;
+        return {
+          full: { x, y: py, width, height: ph },
+          view: { x, y: py + headerH, width, height: ph - headerH },
+        };
+      });
     }
 
     if (mode === 'grid') {
@@ -374,17 +384,57 @@ class BrowserManager {
         const row = Math.floor(i / cols);
         const isLastCol = col === cols - 1;
         const isLastRow = row === rows - 1;
+        const px = x + col * (paneW + gap);
+        const py = y + row * (paneH + gap);
+        const pw = isLastCol ? width - col * (paneW + gap) : paneW;
+        const ph = isLastRow ? height - row * (paneH + gap) : paneH;
         return {
-          x: x + col * (paneW + gap),
-          y: y + row * (paneH + gap),
-          width: isLastCol ? width - col * (paneW + gap) : paneW,
-          height: isLastRow ? height - row * (paneH + gap) : paneH,
+          full: { x: px, y: py, width: pw, height: ph },
+          view: { x: px, y: py + headerH, width: pw, height: ph - headerH },
         };
       });
     }
 
     // Fallback single
-    return [{ x, y, width, height }];
+    return [{ full: { x, y, width, height }, view: { x, y, width, height } }];
+  }
+
+  /**
+   * Close a pane from split view (hide it, don't delete the tab)
+   */
+  closePane(tabId) {
+    this.closedPanes.add(tabId);
+    this.pinnedTabs.delete(tabId);
+    // If all panes closed or only one left, switch to single mode
+    const visibleTabs = this.tabOrder.filter(id => this.views.has(id) && !this.closedPanes.has(id));
+    if (visibleTabs.length <= 1) {
+      this.splitMode = 'single';
+      this.closedPanes.clear();
+      if (visibleTabs.length === 1) {
+        this.activeTabId = visibleTabs[0];
+        this.sendToRenderer('tab-switched', { tabId: visibleTabs[0] });
+      }
+    }
+    this.layoutViews();
+  }
+
+  /**
+   * Toggle pin state for a pane
+   */
+  togglePinPane(tabId) {
+    if (this.pinnedTabs.has(tabId)) {
+      this.pinnedTabs.delete(tabId);
+    } else {
+      this.pinnedTabs.add(tabId);
+    }
+    this.layoutViews();
+  }
+
+  /**
+   * Get visible tab IDs for current split layout
+   */
+  getVisibleTabIds() {
+    return this.tabOrder.filter(id => this.views.has(id) && !this.closedPanes.has(id));
   }
 
   /**
@@ -406,21 +456,37 @@ class BrowserManager {
           view.setBounds(hidden);
         }
       }
+      this.sendToRenderer('pane-layout', { panes: [], splitMode: 'single' });
       return;
     }
 
-    // Split mode: show all tabs
-    const tabIds = this.tabOrder.filter(id => this.views.has(id));
+    // Split mode: show visible tabs (not closed)
+    const tabIds = this.getVisibleTabIds();
     const bounds = this.computeSplitBounds(content, tabIds.length, this.splitMode);
 
-    for (const [id, { view }] of this.views) {
+    const paneInfos = [];
+
+    for (const [id, { view, config }] of this.views) {
       const idx = tabIds.indexOf(id);
       if (idx >= 0 && idx < bounds.length) {
-        view.setBounds(bounds[idx]);
+        view.setBounds(bounds[idx].view);
+        paneInfos.push({
+          tabId: id,
+          title: config.title,
+          isPinned: this.pinnedTabs.has(id),
+          headerBounds: {
+            x: bounds[idx].full.x,
+            y: bounds[idx].full.y,
+            width: bounds[idx].full.width,
+            height: PANE_HEADER_HEIGHT,
+          },
+        });
       } else {
         view.setBounds(hidden);
       }
     }
+
+    this.sendToRenderer('pane-layout', { panes: paneInfos, splitMode: this.splitMode });
   }
 
   reloadActiveTab() {

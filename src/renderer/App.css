@@ -263,7 +263,169 @@ html, body, #root {
 }
 
 /* ── Browser Container ── */
-.browser-container { flex: 1 1 0; position: relative; overflow: hidden; }
+.browser-container {
+  flex: 1 1 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--border); /* shows through as gap/border between split panes */
+}
+
+/* ── Pane Headers (split view action strip) ── */
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  font-size: 11px;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.pane-header-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.pane-header-loading {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--text-dim);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: pane-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pane-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pane-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.pane-header-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: background 0.1s, color 0.1s;
+  padding: 0;
+}
+
+.pane-header-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.pane-header-btn.active {
+  color: var(--accent);
+}
+
+.pane-header-close:hover {
+  background: var(--error);
+  color: white;
+}
+
+/* ── Saved Layout items in dropdown ── */
+.saved-layout-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+  margin-bottom: 2px;
+}
+
+.saved-layout-item:hover {
+  background: var(--bg-hover);
+}
+
+.saved-layout-name {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-layout-info {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.saved-layout-delete {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.saved-layout-item:hover .saved-layout-delete {
+  opacity: 1;
+}
+
+.saved-layout-delete:hover {
+  background: var(--error);
+  color: white;
+}
+
+.save-layout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 8px;
+  margin-top: 4px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.save-layout-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-dim);
+}
 
 /* ── Settings ── */
 .settings-overlay {

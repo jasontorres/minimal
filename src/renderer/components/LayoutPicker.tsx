@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { SplitMode } from '../types';
+import type { SplitMode, SavedLayout } from '../types';
 
 const api = window.electronAPI;
 
@@ -8,19 +8,17 @@ interface LayoutPickerProps {
 }
 
 const LAYOUTS: { mode: SplitMode; label: string; minTabs: number }[] = [
-  { mode: 'single',  label: 'Single',     minTabs: 1 },
-  { mode: 'split-v', label: 'Side by Side', minTabs: 2 },
-  { mode: 'split-h', label: 'Stacked',    minTabs: 2 },
-  { mode: 'grid',    label: 'Grid',       minTabs: 4 },
+  { mode: 'single',  label: 'Single',       minTabs: 1 },
+  { mode: 'split-v', label: 'Side by Side',  minTabs: 2 },
+  { mode: 'split-h', label: 'Stacked',       minTabs: 2 },
+  { mode: 'grid',    label: 'Grid',          minTabs: 4 },
 ];
 
 function LayoutIcon({ mode, active }: { mode: SplitMode; active: boolean }) {
   const color = active ? 'var(--accent)' : 'var(--text-dim)';
   const bg = active ? 'var(--accent)' : 'var(--border)';
   const size = 20;
-  const gap = 1.5;
 
-  // Simple SVG grid icons
   switch (mode) {
     case 'single':
       return (
@@ -57,10 +55,16 @@ function LayoutIcon({ mode, active }: { mode: SplitMode; active: boolean }) {
 export default function LayoutPicker({ tabCount }: LayoutPickerProps) {
   const [mode, setMode] = useState<SplitMode>('single');
   const [open, setOpen] = useState(false);
+  const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>([]);
 
   useEffect(() => {
     api.getSplitMode().then(m => setMode(m));
+    api.getSavedLayouts().then(l => setSavedLayouts(l));
   }, []);
+
+  function refreshLayouts() {
+    api.getSavedLayouts().then(l => setSavedLayouts(l));
+  }
 
   function select(m: SplitMode) {
     setMode(m);
@@ -75,8 +79,30 @@ export default function LayoutPicker({ tabCount }: LayoutPickerProps) {
       api.showViews();
     } else {
       api.hideViews();
+      refreshLayouts();
       setOpen(true);
     }
+  }
+
+  async function saveCurrentLayout() {
+    const nextNum = savedLayouts.length + 1;
+    const name = `Layout ${nextNum}`;
+    const layout = await api.saveLayout(name);
+    setSavedLayouts([...savedLayouts, layout]);
+  }
+
+  function loadLayout(layoutId: string) {
+    api.loadLayout(layoutId);
+    const layout = savedLayouts.find(l => l.id === layoutId);
+    if (layout) setMode(layout.splitMode);
+    setOpen(false);
+    api.showViews();
+  }
+
+  async function deleteLayout(e: React.MouseEvent, layoutId: string) {
+    e.stopPropagation();
+    await api.deleteLayout(layoutId);
+    setSavedLayouts(savedLayouts.filter(l => l.id !== layoutId));
   }
 
   const available = LAYOUTS.filter(l => l.minTabs <= tabCount);
@@ -90,8 +116,12 @@ export default function LayoutPicker({ tabCount }: LayoutPickerProps) {
         </svg>
       </button>
       {open && (
-        <div className="dropdown-menu open" style={{ padding: '8px' }}>
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div className="dropdown-menu open" style={{ padding: '8px', minWidth: 220 }}>
+          {/* Layout mode selector */}
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            Layout Mode
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {available.map(l => (
               <button
                 key={l.mode}
@@ -112,6 +142,47 @@ export default function LayoutPicker({ tabCount }: LayoutPickerProps) {
                 <LayoutIcon mode={l.mode} active={mode === l.mode} />
               </button>
             ))}
+          </div>
+
+          {/* Saved layouts */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              Saved Layouts
+            </div>
+            {savedLayouts.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0', fontStyle: 'italic' }}>
+                No saved layouts
+              </div>
+            )}
+            {savedLayouts.map(layout => (
+              <div
+                key={layout.id}
+                className="saved-layout-item"
+                onClick={() => loadLayout(layout.id)}
+              >
+                <LayoutIcon mode={layout.splitMode} active={false} />
+                <span className="saved-layout-name">{layout.name}</span>
+                <span className="saved-layout-info">{layout.tabIds.length} tabs</span>
+                <button
+                  className="saved-layout-delete"
+                  onClick={(e) => deleteLayout(e, layout.id)}
+                  title="Delete layout"
+                >
+                  <svg width="8" height="8" viewBox="0 0 10 10">
+                    <line x1="2" y1="2" x2="8" y2="8" stroke="currentColor" strokeWidth="1.2" />
+                    <line x1="8" y1="2" x2="2" y2="8" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {mode !== 'single' && (
+              <button
+                className="save-layout-btn"
+                onClick={saveCurrentLayout}
+              >
+                + Save Current Layout
+              </button>
+            )}
           </div>
         </div>
       )}
