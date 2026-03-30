@@ -369,6 +369,84 @@ function setupIpc() {
     return browserManager.getSplitMode();
   });
 
+  // Layout templates
+  ipcMain.on('set-layout-template', (_event, templateId) => {
+    browserManager.setLayoutTemplate(templateId);
+  });
+
+  ipcMain.handle('get-layout-template-id', () => {
+    return browserManager.getLayoutTemplateId();
+  });
+
+  ipcMain.handle('get-layout-templates', () => {
+    return browserManager.getLayoutTemplates();
+  });
+
+  // Pane actions
+  ipcMain.on('close-pane', (_event, tabId) => {
+    browserManager.closePane(tabId);
+  });
+
+  ipcMain.on('toggle-pin-pane', (_event, tabId) => {
+    browserManager.togglePinPane(tabId);
+  });
+
+  ipcMain.on('swap-panes', (_event, { tabIdA, tabIdB }) => {
+    browserManager.swapPanes(tabIdA, tabIdB);
+  });
+
+  // Saved layouts
+  ipcMain.handle('save-layout', (_event, name) => {
+    const config = configStore.getConfig();
+    const layouts = config.savedLayouts || [];
+    const layout = {
+      id: 'layout-' + Date.now(),
+      name,
+      templateId: browserManager.getLayoutTemplateId(),
+      splitMode: browserManager.getSplitMode(),
+      tabIds: browserManager.getVisibleTabIds(),
+      pinnedTabIds: [...browserManager.pinnedTabs],
+    };
+    layouts.push(layout);
+    configStore.updateConfig({ savedLayouts: layouts });
+    return layout;
+  });
+
+  ipcMain.handle('get-saved-layouts', () => {
+    const config = configStore.getConfig();
+    return config.savedLayouts || [];
+  });
+
+  ipcMain.on('load-layout', (_event, layoutId) => {
+    const config = configStore.getConfig();
+    const layouts = config.savedLayouts || [];
+    const layout = layouts.find(l => l.id === layoutId);
+    if (!layout) return;
+
+    // Use templateId if available, fall back to splitMode for old saved layouts
+    const templateId = layout.templateId || layout.splitMode;
+    browserManager.layoutTemplateId = templateId;
+    browserManager.closedPanes.clear();
+    browserManager.pinnedTabs = new Set(layout.pinnedTabIds || []);
+
+    // Close panes not in the saved layout
+    const allTabs = browserManager.tabOrder.filter(id => browserManager.views.has(id));
+    for (const id of allTabs) {
+      if (!layout.tabIds.includes(id)) {
+        browserManager.closedPanes.add(id);
+      }
+    }
+
+    browserManager.layoutViews();
+  });
+
+  ipcMain.handle('delete-layout', (_event, layoutId) => {
+    const config = configStore.getConfig();
+    const layouts = (config.savedLayouts || []).filter(l => l.id !== layoutId);
+    configStore.updateConfig({ savedLayouts: layouts });
+    return true;
+  });
+
   // Developer tools — open as detached popup window
   ipcMain.on('toggle-devtools', () => {
     if (!mainWindow) return;

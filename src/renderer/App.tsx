@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import TitleBar from './components/TitleBar';
 import TabBar from './components/TabBar';
+import PaneHeaders from './components/PaneHeaders';
 import Settings from './components/Settings';
-import type { TabConfig, ProfileConfig, AppConfig, TabUpdateData } from './types';
+import type { TabConfig, ProfileConfig, AppConfig, TabUpdateData, PaneLayoutData } from './types';
 
 const api = window.electronAPI;
 
@@ -16,6 +17,7 @@ export default function App() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<'appearance' | 'tabs' | 'profiles' | 'advanced' | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
   const [tabStates, setTabStates] = useState<Map<string, { isLoading?: boolean; title?: string; favicon?: string }>>(new Map());
+  const [paneLayout, setPaneLayout] = useState<PaneLayoutData | null>(null);
 
   useEffect(() => { api.getDarkMode().then(setIsDark); }, []);
   useEffect(() => { document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); }, [isDark]);
@@ -65,6 +67,12 @@ export default function App() {
     });
 
     api.onTabSwitched((data) => setActiveTabId(data.tabId));
+
+    api.onPaneLayout((data: PaneLayoutData) => setPaneLayout(data));
+
+    api.onLayoutTemplateChanged(() => {
+      // Template changed (e.g. auto-relayout after pane close) — pane-layout event handles the visual update
+    });
   }, []);
 
   const showNotification = useCallback((msg: string) => {
@@ -123,6 +131,12 @@ export default function App() {
 
         <div className="browser-container">
           {tabs.length === 0 && <div className="placeholder">No tabs configured. Click + to add one.</div>}
+          {paneLayout && paneLayout.panes.length > 0 && (
+            <PaneHeaders
+              panes={paneLayout.panes}
+              tabStates={tabStates}
+            />
+          )}
           {settingsOpen && <Settings onClose={closeSettings} initialTab={settingsInitialTab} />}
         </div>
       </div>
