@@ -69,6 +69,10 @@ export default function App() {
     api.onTabSwitched((data) => setActiveTabId(data.tabId));
 
     api.onPaneLayout((data: PaneLayoutData) => setPaneLayout(data));
+
+    api.onLayoutTemplateChanged(() => {
+      // Template changed (e.g. auto-relayout after pane close) — pane-layout event handles the visual update
+    });
   }, []);
 
   const showNotification = useCallback((msg: string) => {

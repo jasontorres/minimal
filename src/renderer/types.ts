@@ -33,22 +33,38 @@ export interface TabUpdateData {
   favicon?: string;
 }
 
+export interface LayoutSlot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface LayoutTemplate {
+  id: string;
+  label: string;
+  slots: LayoutSlot[];
+}
+
 export interface PaneInfo {
   tabId: string;
   title: string;
   isPinned: boolean;
+  slotIndex: number;
   headerBounds: { x: number; y: number; width: number; height: number };
 }
 
 export interface PaneLayoutData {
   panes: PaneInfo[];
-  splitMode: SplitMode;
+  splitMode: string;
+  templateId: string;
 }
 
 export interface SavedLayout {
   id: string;
   name: string;
-  splitMode: SplitMode;
+  templateId: string;
+  splitMode: string;
   tabIds: string[];
   pinnedTabIds: string[];
 }
@@ -74,8 +90,12 @@ export interface ElectronAPI {
   switchProfile: (profileId: string) => void;
   setSplitMode: (mode: SplitMode) => void;
   getSplitMode: () => Promise<SplitMode>;
+  setLayoutTemplate: (templateId: string) => void;
+  getLayoutTemplateId: () => Promise<string>;
+  getLayoutTemplates: () => Promise<LayoutTemplate[]>;
   closePane: (tabId: string) => void;
   togglePinPane: (tabId: string) => void;
+  swapPanes: (tabIdA: string, tabIdB: string) => void;
   saveLayout: (name: string) => Promise<SavedLayout>;
   getSavedLayouts: () => Promise<SavedLayout[]>;
   loadLayout: (layoutId: string) => void;
@@ -88,6 +108,7 @@ export interface ElectronAPI {
   onNavigationBlocked: (callback: (data: { tabId: string; url: string; reason: string }) => void) => void;
   onTabSwitched: (callback: (data: { tabId: string }) => void) => void;
   onPaneLayout: (callback: (data: PaneLayoutData) => void) => void;
+  onLayoutTemplateChanged: (callback: (data: { templateId: string }) => void) => void;
   removeAllListeners: (channel: string) => void;
 }
 

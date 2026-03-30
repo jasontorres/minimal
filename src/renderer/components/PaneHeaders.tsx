@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import type { PaneInfo } from '../types';
 
 const api = window.electronAPI;
@@ -9,6 +9,10 @@ interface PaneHeadersProps {
 }
 
 export default function PaneHeaders({ panes, tabStates }: PaneHeadersProps) {
+  const [dragTabId, setDragTabId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const dragRef = useRef<string | null>(null);
+
   if (panes.length === 0) return null;
 
   // The first pane's headerBounds origin tells us where the content area starts
@@ -17,12 +21,58 @@ export default function PaneHeaders({ panes, tabStates }: PaneHeadersProps) {
   const originX = panes[0].headerBounds.x;
   const originY = panes[0].headerBounds.y;
 
+  function handleDragStart(e: React.DragEvent, tabId: string) {
+    dragRef.current = tabId;
+    setDragTabId(tabId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', tabId);
+    // Hide BrowserViews so drop zones are visible
+    api.hideViews();
+  }
+
+  function handleDragOver(e: React.DragEvent, tabId: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (tabId !== dragRef.current) {
+      setDropTargetId(tabId);
+    }
+  }
+
+  function handleDragLeave(_e: React.DragEvent, tabId: string) {
+    if (dropTargetId === tabId) {
+      setDropTargetId(null);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent, tabId: string) {
+    e.preventDefault();
+    const sourceId = dragRef.current;
+    if (sourceId && sourceId !== tabId) {
+      api.swapPanes(sourceId, tabId);
+    }
+    cleanup();
+    api.showViews();
+  }
+
+  function handleDragEnd() {
+    cleanup();
+    api.showViews();
+  }
+
+  function cleanup() {
+    dragRef.current = null;
+    setDragTabId(null);
+    setDropTargetId(null);
+  }
+
   return (
     <>
       {panes.map(pane => {
         const state = tabStates.get(pane.tabId);
         const title = state?.title || pane.title;
         const { headerBounds } = pane;
+        const isDragging = dragTabId === pane.tabId;
+        const isDropTarget = dropTargetId === pane.tabId;
 
         const style: React.CSSProperties = {
           position: 'absolute',
@@ -30,11 +80,29 @@ export default function PaneHeaders({ panes, tabStates }: PaneHeadersProps) {
           top: headerBounds.y - originY,
           width: headerBounds.width,
           height: headerBounds.height,
-          zIndex: 10,
+          zIndex: isDragging ? 20 : 10,
+          opacity: isDragging ? 0.6 : 1,
         };
 
         return (
-          <div key={pane.tabId} className="pane-header" style={style}>
+          <div
+            key={pane.tabId}
+            className={`pane-header ${isDropTarget ? 'pane-header-drop-target' : ''}`}
+            style={style}
+            draggable
+            onDragStart={e => handleDragStart(e, pane.tabId)}
+            onDragOver={e => handleDragOver(e, pane.tabId)}
+            onDragLeave={e => handleDragLeave(e, pane.tabId)}
+            onDrop={e => handleDrop(e, pane.tabId)}
+            onDragEnd={handleDragEnd}
+          >
+            <span className="pane-header-drag-handle" title="Drag to reorder">
+              <svg width="8" height="10" viewBox="0 0 8 10" fill="currentColor" opacity="0.4">
+                <circle cx="2" cy="2" r="1" /><circle cx="6" cy="2" r="1" />
+                <circle cx="2" cy="5" r="1" /><circle cx="6" cy="5" r="1" />
+                <circle cx="2" cy="8" r="1" /><circle cx="6" cy="8" r="1" />
+              </svg>
+            </span>
             <span className="pane-header-title" title={title}>
               {state?.isLoading && <span className="pane-header-loading" />}
               {title}

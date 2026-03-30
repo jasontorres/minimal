@@ -12,6 +12,79 @@ const TAB_TOP_SIZES = { small: 28, medium: 36, large: 44 };
 const TAB_LEFT_SIZES = { small: 120, medium: 160, large: 200 };
 const TAB_LEFT_ICON_ONLY_SIZES = { small: 36, medium: 44, large: 52 };
 
+/**
+ * Layout templates — Windows 11 snap-style fixed slot definitions.
+ * Each slot is { x, y, w, h } as fractions of the content area (0..1).
+ */
+const LAYOUT_TEMPLATES = [
+  // 1 pane
+  { id: 'single', label: 'Single', slots: [
+    { x: 0, y: 0, w: 1, h: 1 }
+  ]},
+  // 2 panes
+  { id: 'half-v', label: '1/2 + 1/2', slots: [
+    { x: 0, y: 0, w: 0.5, h: 1 },
+    { x: 0.5, y: 0, w: 0.5, h: 1 },
+  ]},
+  { id: 'half-h', label: 'Top + Bottom', slots: [
+    { x: 0, y: 0, w: 1, h: 0.5 },
+    { x: 0, y: 0.5, w: 1, h: 0.5 },
+  ]},
+  { id: 'left-wide', label: '2/3 + 1/3', slots: [
+    { x: 0, y: 0, w: 2/3, h: 1 },
+    { x: 2/3, y: 0, w: 1/3, h: 1 },
+  ]},
+  { id: 'right-wide', label: '1/3 + 2/3', slots: [
+    { x: 0, y: 0, w: 1/3, h: 1 },
+    { x: 1/3, y: 0, w: 2/3, h: 1 },
+  ]},
+  // 3 panes
+  { id: 'thirds-v', label: '3 Columns', slots: [
+    { x: 0, y: 0, w: 1/3, h: 1 },
+    { x: 1/3, y: 0, w: 1/3, h: 1 },
+    { x: 2/3, y: 0, w: 1/3, h: 1 },
+  ]},
+  { id: 'left-right-split', label: 'Left + Right Split', slots: [
+    { x: 0, y: 0, w: 0.5, h: 1 },
+    { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+    { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+  ]},
+  { id: 'right-left-split', label: 'Left Split + Right', slots: [
+    { x: 0, y: 0, w: 0.5, h: 0.5 },
+    { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+    { x: 0.5, y: 0, w: 0.5, h: 1 },
+  ]},
+  // 4 panes
+  { id: 'grid-2x2', label: '2x2 Grid', slots: [
+    { x: 0, y: 0, w: 0.5, h: 0.5 },
+    { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+    { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+    { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+  ]},
+];
+
+// Default template to use when auto-relayouting after pane close
+const AUTO_LAYOUT_DEFAULTS = {
+  1: 'single',
+  2: 'half-v',
+  3: 'thirds-v',
+  4: 'grid-2x2',
+};
+
+// Map legacy split modes to template IDs
+const LEGACY_MODE_MAP = {
+  'single': 'single',
+  'split-v': 'half-v',
+  'split-h': 'half-h',
+  'grid': 'grid-2x2',
+};
+
+// Reverse map: template ID to legacy split mode (for backward compat)
+const TEMPLATE_TO_LEGACY = {};
+for (const [legacy, tmpl] of Object.entries(LEGACY_MODE_MAP)) {
+  TEMPLATE_TO_LEGACY[tmpl] = legacy;
+}
+
 const AUTH_DOMAINS = [
   'accounts.google.com',
   'login.microsoftonline.com',
@@ -33,10 +106,10 @@ class BrowserManager {
     this.tabSize = 'medium';
     this.authWindows = new Set();
     this.persistentSession = null;
-    this.splitMode = 'single'; // 'single' | 'split-h' | 'split-v' | 'grid'
+    this.layoutTemplateId = 'single';
     this.tabOrder = []; // ordered list of tab IDs for layout
-    this.pinnedTabs = new Set(); // pinned tab IDs stay visible in split
-    this.closedPanes = new Set(); // tabs removed from split view
+    this.pinnedTabs = new Set();
+    this.closedPanes = new Set();
   }
 
   getSession() {
@@ -53,14 +126,31 @@ class BrowserManager {
     window.on('unmaximize', () => this.layoutViews());
   }
 
+  // Legacy compat: setSplitMode maps old mode names to templates
   setSplitMode(mode) {
-    this.splitMode = mode;
-    this.closedPanes.clear(); // reset closed panes when changing mode
+    const templateId = LEGACY_MODE_MAP[mode] || mode;
+    this.setLayoutTemplate(templateId);
+  }
+
+  // Legacy compat: getSplitMode returns old-style mode name
+  getSplitMode() {
+    return TEMPLATE_TO_LEGACY[this.layoutTemplateId] || this.layoutTemplateId;
+  }
+
+  setLayoutTemplate(templateId) {
+    const tmpl = LAYOUT_TEMPLATES.find(t => t.id === templateId);
+    if (!tmpl) return;
+    this.layoutTemplateId = templateId;
+    this.closedPanes.clear();
     this.layoutViews();
   }
 
-  getSplitMode() {
-    return this.splitMode;
+  getLayoutTemplateId() {
+    return this.layoutTemplateId;
+  }
+
+  getLayoutTemplates() {
+    return LAYOUT_TEMPLATES;
   }
 
   setTabBarPosition(position) {
@@ -337,85 +427,75 @@ class BrowserManager {
   }
 
   /**
-   * Compute split bounds for N views within a content area.
-   * Returns { full, view } where full is the total pane area (including header)
-   * and view is the BrowserView area (below the header).
+   * Compute bounds for views based on a layout template.
+   * Each slot's fractional coords are converted to pixel bounds within the content area.
+   * Returns array of { full, view } for each slot, where view leaves room for the header.
    */
-  computeSplitBounds(content, count, mode) {
+  computeTemplateBounds(content, template, count) {
     const { x, y, width, height } = content;
-    const gap = PANE_GAP;
-    const headerH = (mode !== 'single' && count > 1) ? PANE_HEADER_HEIGHT : 0;
+    const isSingle = template.id === 'single' || count <= 1;
+    const headerH = isSingle ? 0 : PANE_HEADER_HEIGHT;
+    const gap = isSingle ? 0 : PANE_GAP;
+    const slotCount = Math.min(template.slots.length, count);
 
-    if (count <= 1 || mode === 'single') {
+    if (isSingle) {
       return [{ full: { x, y, width, height }, view: { x, y, width, height } }];
     }
 
-    if (mode === 'split-v') {
-      const paneW = Math.floor((width - gap * (count - 1)) / count);
-      return Array.from({ length: count }, (_, i) => {
-        const px = x + i * (paneW + gap);
-        const pw = i === count - 1 ? width - i * (paneW + gap) : paneW;
-        return {
-          full: { x: px, y, width: pw, height },
-          view: { x: px, y: y + headerH, width: pw, height: height - headerH },
-        };
-      });
-    }
+    return template.slots.slice(0, slotCount).map(slot => {
+      // Convert fractional to pixel, accounting for gaps between adjacent slots
+      const px = Math.round(x + slot.x * width + (slot.x > 0 ? gap / 2 : 0));
+      const py = Math.round(y + slot.y * height + (slot.y > 0 ? gap / 2 : 0));
+      const pr = Math.round(x + (slot.x + slot.w) * width - (slot.x + slot.w < 1 ? gap / 2 : 0));
+      const pb = Math.round(y + (slot.y + slot.h) * height - (slot.y + slot.h < 1 ? gap / 2 : 0));
+      const pw = pr - px;
+      const ph = pb - py;
 
-    if (mode === 'split-h') {
-      const paneH = Math.floor((height - gap * (count - 1)) / count);
-      return Array.from({ length: count }, (_, i) => {
-        const py = y + i * (paneH + gap);
-        const ph = i === count - 1 ? height - i * (paneH + gap) : paneH;
-        return {
-          full: { x, y: py, width, height: ph },
-          view: { x, y: py + headerH, width, height: ph - headerH },
-        };
-      });
-    }
-
-    if (mode === 'grid') {
-      const cols = count <= 2 ? count : 2;
-      const rows = Math.ceil(count / cols);
-      const paneW = Math.floor((width - gap * (cols - 1)) / cols);
-      const paneH = Math.floor((height - gap * (rows - 1)) / rows);
-      return Array.from({ length: count }, (_, i) => {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const isLastCol = col === cols - 1;
-        const isLastRow = row === rows - 1;
-        const px = x + col * (paneW + gap);
-        const py = y + row * (paneH + gap);
-        const pw = isLastCol ? width - col * (paneW + gap) : paneW;
-        const ph = isLastRow ? height - row * (paneH + gap) : paneH;
-        return {
-          full: { x: px, y: py, width: pw, height: ph },
-          view: { x: px, y: py + headerH, width: pw, height: ph - headerH },
-        };
-      });
-    }
-
-    // Fallback single
-    return [{ full: { x, y, width, height }, view: { x, y, width, height } }];
+      return {
+        full: { x: px, y: py, width: pw, height: ph },
+        view: { x: px, y: py + headerH, width: pw, height: ph - headerH },
+      };
+    });
   }
 
   /**
-   * Close a pane from split view (hide it, don't delete the tab)
+   * Close a pane from split view (hide it, don't delete the tab).
+   * Auto-relayouts remaining panes with the best fitting template.
    */
   closePane(tabId) {
     this.closedPanes.add(tabId);
     this.pinnedTabs.delete(tabId);
-    // If all panes closed or only one left, switch to single mode
-    const visibleTabs = this.tabOrder.filter(id => this.views.has(id) && !this.closedPanes.has(id));
-    if (visibleTabs.length <= 1) {
-      this.splitMode = 'single';
+
+    const visibleTabs = this.getVisibleTabIds();
+    const count = visibleTabs.length;
+
+    if (count <= 1) {
+      // Switch to single if 0 or 1 remain
+      this.layoutTemplateId = 'single';
       this.closedPanes.clear();
-      if (visibleTabs.length === 1) {
+      if (count === 1) {
         this.activeTabId = visibleTabs[0];
         this.sendToRenderer('tab-switched', { tabId: visibleTabs[0] });
       }
+    } else {
+      // Auto-pick best template for remaining count
+      const currentTemplate = LAYOUT_TEMPLATES.find(t => t.id === this.layoutTemplateId);
+      if (!currentTemplate || currentTemplate.slots.length !== count) {
+        // Find a template that fits the remaining count
+        const defaultId = AUTO_LAYOUT_DEFAULTS[count];
+        if (defaultId) {
+          this.layoutTemplateId = defaultId;
+        } else {
+          // Fallback: find any template with the right slot count
+          const match = LAYOUT_TEMPLATES.find(t => t.slots.length === count);
+          if (match) this.layoutTemplateId = match.id;
+        }
+      }
     }
+
     this.layoutViews();
+    // Notify renderer of the new template
+    this.sendToRenderer('layout-template-changed', { templateId: this.layoutTemplateId });
   }
 
   /**
@@ -431,6 +511,18 @@ class BrowserManager {
   }
 
   /**
+   * Swap two panes' positions in the tab order
+   */
+  swapPanes(tabIdA, tabIdB) {
+    const idxA = this.tabOrder.indexOf(tabIdA);
+    const idxB = this.tabOrder.indexOf(tabIdB);
+    if (idxA < 0 || idxB < 0) return;
+    this.tabOrder[idxA] = tabIdB;
+    this.tabOrder[idxB] = tabIdA;
+    this.layoutViews();
+  }
+
+  /**
    * Get visible tab IDs for current split layout
    */
   getVisibleTabIds() {
@@ -438,15 +530,16 @@ class BrowserManager {
   }
 
   /**
-   * Master layout function — positions all views based on split mode.
+   * Master layout function — positions all views based on the active template.
    */
   layoutViews() {
     if (!this.mainWindow || this.views.size === 0) return;
 
     const content = this.getContentBounds();
     const hidden = { x: 0, y: 0, width: 0, height: 0 };
+    const template = LAYOUT_TEMPLATES.find(t => t.id === this.layoutTemplateId) || LAYOUT_TEMPLATES[0];
 
-    if (this.splitMode === 'single') {
+    if (template.id === 'single') {
       // Single mode: only active view visible
       for (const [id, { view }] of this.views) {
         if (id === this.activeTabId) {
@@ -456,24 +549,26 @@ class BrowserManager {
           view.setBounds(hidden);
         }
       }
-      this.sendToRenderer('pane-layout', { panes: [], splitMode: 'single' });
+      this.sendToRenderer('pane-layout', { panes: [], splitMode: 'single', templateId: 'single' });
       return;
     }
 
-    // Split mode: show visible tabs (not closed)
+    // Split mode: show visible tabs up to template slot count
     const tabIds = this.getVisibleTabIds();
-    const bounds = this.computeSplitBounds(content, tabIds.length, this.splitMode);
+    const slotCount = Math.min(template.slots.length, tabIds.length);
+    const bounds = this.computeTemplateBounds(content, template, slotCount);
 
     const paneInfos = [];
 
     for (const [id, { view, config }] of this.views) {
       const idx = tabIds.indexOf(id);
-      if (idx >= 0 && idx < bounds.length) {
+      if (idx >= 0 && idx < slotCount) {
         view.setBounds(bounds[idx].view);
         paneInfos.push({
           tabId: id,
           title: config.title,
           isPinned: this.pinnedTabs.has(id),
+          slotIndex: idx,
           headerBounds: {
             x: bounds[idx].full.x,
             y: bounds[idx].full.y,
@@ -486,7 +581,12 @@ class BrowserManager {
       }
     }
 
-    this.sendToRenderer('pane-layout', { panes: paneInfos, splitMode: this.splitMode });
+    const legacyMode = TEMPLATE_TO_LEGACY[this.layoutTemplateId] || this.layoutTemplateId;
+    this.sendToRenderer('pane-layout', {
+      panes: paneInfos,
+      splitMode: legacyMode,
+      templateId: this.layoutTemplateId,
+    });
   }
 
   reloadActiveTab() {

@@ -369,6 +369,19 @@ function setupIpc() {
     return browserManager.getSplitMode();
   });
 
+  // Layout templates
+  ipcMain.on('set-layout-template', (_event, templateId) => {
+    browserManager.setLayoutTemplate(templateId);
+  });
+
+  ipcMain.handle('get-layout-template-id', () => {
+    return browserManager.getLayoutTemplateId();
+  });
+
+  ipcMain.handle('get-layout-templates', () => {
+    return browserManager.getLayoutTemplates();
+  });
+
   // Pane actions
   ipcMain.on('close-pane', (_event, tabId) => {
     browserManager.closePane(tabId);
@@ -378,6 +391,10 @@ function setupIpc() {
     browserManager.togglePinPane(tabId);
   });
 
+  ipcMain.on('swap-panes', (_event, { tabIdA, tabIdB }) => {
+    browserManager.swapPanes(tabIdA, tabIdB);
+  });
+
   // Saved layouts
   ipcMain.handle('save-layout', (_event, name) => {
     const config = configStore.getConfig();
@@ -385,6 +402,7 @@ function setupIpc() {
     const layout = {
       id: 'layout-' + Date.now(),
       name,
+      templateId: browserManager.getLayoutTemplateId(),
       splitMode: browserManager.getSplitMode(),
       tabIds: browserManager.getVisibleTabIds(),
       pinnedTabIds: [...browserManager.pinnedTabs],
@@ -405,7 +423,9 @@ function setupIpc() {
     const layout = layouts.find(l => l.id === layoutId);
     if (!layout) return;
 
-    browserManager.splitMode = layout.splitMode;
+    // Use templateId if available, fall back to splitMode for old saved layouts
+    const templateId = layout.templateId || layout.splitMode;
+    browserManager.layoutTemplateId = templateId;
     browserManager.closedPanes.clear();
     browserManager.pinnedTabs = new Set(layout.pinnedTabIds || []);
 
